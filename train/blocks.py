@@ -16,7 +16,7 @@ def reduce_temporal_feature(x,
                      dilation=3,
                      l2_reg_weight=1e-6):
     """
-    Conv3D -> BatchNorm -> Relu -> GlobalMaxpooling2D
+    Conv3D -> GlobalMaxpooling2D
     """
     y = x1 = tf.keras.Input(x.shape[1:], batch_size=x.shape[0])
     h = tf.shape(y)[1]
@@ -42,7 +42,6 @@ def self_similarity(x, temperature=13.544):
         sims = -1.0 * dist
         return sims
     y = tf.map_fn(_get_sims, y)
-    y = -1.0 * y
     y /= temperature
     y = tf.nn.softmax(y, axis=-1)
     y = tf.expand_dims(y, -1)
@@ -60,12 +59,36 @@ def period_embedding(x, batch_size, num_frames, d_model=512, n_heads=4, dff=512,
     y = tf.reshape(y, [batch_size, num_frames, num_frames * 32])
     y = tf.keras.layers.Dense(d_model)(y) # (batch_size, num_frames, d_model)
     y = TransformerLayer(d_model, n_heads, dff, num_frames)(y)
-    y = tf.keras.layers.Dropout(0.25)(y)
-    y = tf.keras.layers.Dense(512,
-            kernel_regularizer=tf.keras.regularizers.l2(1e-6))(y)
-    y = tf.keras.layers.ReLU()(y)
-    y = tf.keras.layers.Dropout(0.25)(y)
-    y = tf.keras.layers.Dense(512,
-            kernel_regularizer=tf.keras.regularizers.l2(1e-6))(y)
-    y = tf.keras.layers.ReLU()(y)
     return tf.keras.Model(x1, y, name='period_embedding')(x)
+
+def periodicity_classifier(x, fc_channels=512, dropout=0.25):
+    """
+        FC -> FC -> FC
+    """
+    y = x1 = tf.keras.Input(x.shape[1:], batch_size=x.shape[0])
+    y = tf.keras.layers.Dropout(dropout)(y)
+    y = tf.keras.layers.Dense(fc_channels,
+            kernel_regularizer=tf.keras.regularizers.l2(1e-6))(y)
+    y = tf.keras.layers.ReLU()(y)
+    y = tf.keras.layers.Dropout(dropout)(y)
+    y = tf.keras.layers.Dense(fc_channels,
+            kernel_regularizer=tf.keras.regularizers.l2(1e-6))(y)
+    y = tf.keras.layers.ReLU()(y)
+    y = tf.keras.layers.Dense(1)(y)
+    return tf.keras.Model(x1, y, name='periodicity_classifier')(x)
+
+def period_length_classifier(x, length, fc_channels=512, dropout=0.25):
+    """
+        FC -> FC -> FC
+    """
+    y = x1 = tf.keras.Input(x.shape[1:], batch_size=x.shape[0])
+    y = tf.keras.layers.Dropout(dropout)(y)
+    y = tf.keras.layers.Dense(fc_channels,
+            kernel_regularizer=tf.keras.regularizers.l2(1e-6))(y)
+    y = tf.keras.layers.ReLU()(y)
+    y = tf.keras.layers.Dropout(dropout)(y)
+    y = tf.keras.layers.Dense(fc_channels,
+            kernel_regularizer=tf.keras.regularizers.l2(1e-6))(y)
+    y = tf.keras.layers.ReLU()(y)
+    y = tf.keras.layers.Dense(length)(y)
+    return tf.keras.Model(x1, y, name='period_length_classifier')(x)

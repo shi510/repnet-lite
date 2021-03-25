@@ -4,17 +4,15 @@ import tensorflow as tf
 
 def build_model(input_shape, batch_size, num_frames, net_arch='ResNet50'):
     y = x = tf.keras.Input(input_shape, batch_size=batch_size*num_frames)
-    y = train.blocks.backbone(net_arch, y)(y)
-    y = train.blocks.reduce_temporal_feature(y, num_frames)
-    y = train.blocks.self_similarity(y)
-    y = train.blocks.period_embedding(y, batch_size, num_frames)
-    period_length_predictor = tf.keras.layers.Dense(
-        num_frames // 2, name='period_length_predictor')(y)
-    period_score_predictor = tf.keras.layers.Dense(
-        1, name='period_score_predictor')(y)
+    y = train.blocks.backbone(net_arch, y)(y) # (batch*frames, h, w, c1)
+    y = train.blocks.reduce_temporal_feature(y, num_frames) # (batch, frames, c2)
+    y = train.blocks.self_similarity(y) # (batch, frames, frames, 1)
+    y = train.blocks.period_embedding(y, batch_size, num_frames) # (batch, frames, embeddings)
+    plength = train.blocks.period_length_classifier(y, num_frames // 2) # (batch, frames, frames//2)
+    periodicity = train.blocks.periodicity_classifier(y) # (batch, frames, 1)
     return tf.keras.Model(
         inputs=[x],
-        outputs=[period_length_predictor, period_score_predictor],
+        outputs=[plength, periodicity],
         name='period_estimator')
 
 
