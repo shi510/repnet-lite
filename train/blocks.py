@@ -1,6 +1,6 @@
 import train.model_zoo as model_zoo
 from train.layers.transformer import TransformerLayer
-from train.utils import pairwise_l2_distance
+from train.utils import batched_pairwise_l2_distance
 
 import tensorflow as tf
 
@@ -36,12 +36,7 @@ def reduce_temporal_feature(x,
 def self_similarity(x, temperature=13.544):
     """Calculates self-similarity between batch of sequence of embeddings."""
     y = x1 = tf.keras.Input(x.shape[1:], batch_size=x.shape[0])
-    def _get_sims(x):
-        """Calculates self-similarity between sequence of embeddings."""
-        dist = pairwise_l2_distance(x, x)
-        sims = -1.0 * dist
-        return sims
-    y = tf.map_fn(_get_sims, y)
+    y = -1.0 * batched_pairwise_l2_distance(y)
     y /= temperature
     y = tf.nn.softmax(y, axis=-1)
     y = tf.expand_dims(y, -1)
