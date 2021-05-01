@@ -36,7 +36,7 @@ def reduce_temporal_feature(x,
 def self_similarity(x, temperature=13.544):
     """Calculates self-similarity between batch of sequence of embeddings."""
     y = x1 = tf.keras.Input(x.shape[1:], batch_size=x.shape[0])
-    y = -1.0 * batched_pairwise_l2_distance(y)
+    y = -1.0 * batched_pairwise_l2_distance(y, y)
     y /= temperature
     y = tf.nn.softmax(y, axis=-1)
     y = tf.expand_dims(y, -1)
@@ -45,13 +45,13 @@ def self_similarity(x, temperature=13.544):
 
 def period_embedding(x, batch_size, num_frames, d_model=512, n_heads=4, dff=512, conv_channels=32):
     """
-        Conv2D -> FC -> Transformer -> FC -> FC
+        Conv2D -> FC -> Transformer
     """
     # (batch_size, num_frames, num_frames, 1)
     y = x1 = tf.keras.Input(x.shape[1:], batch_size=x.shape[0])
     y = tf.keras.layers.Conv2D(conv_channels, 3, padding='same')(y)
     y = tf.keras.layers.ReLU()(y)
-    y = tf.reshape(y, [batch_size, num_frames, num_frames * 32])
+    y = tf.reshape(y, [batch_size, num_frames, num_frames * conv_channels])
     y = tf.keras.layers.Dense(d_model)(y) # (batch_size, num_frames, d_model)
     y = TransformerLayer(d_model, n_heads, dff, num_frames)(y)
     return tf.keras.Model(x1, y, name='period_embedding')(x)
