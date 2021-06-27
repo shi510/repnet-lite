@@ -103,6 +103,10 @@ class MultiHeadAttention(tf.keras.layers.Layer):
 
         return outputs, attention_weights
 
+    def get_config(self):
+        return {"d_model": self.d_model,
+            'num_heads': self.num_heads}
+
 
 def get_angles(pos, i, d_model):
     angle_rates = 1 / np.power(10000, (2 * (i//2)) / np.float32(d_model))
@@ -110,8 +114,9 @@ def get_angles(pos, i, d_model):
 
 
 def positional_encoding(position, d_model):
-    angle_rads = get_angles(np.arange(position)[:, np.newaxis],
-                            np.arange(d_model)[np.newaxis, :],
+    
+    angle_rads = get_angles(np.expand_dims(np.arange(position), -1),
+                            np.expand_dims(np.arange(d_model), 0),
                             d_model)
 
     # apply sin to even indices in the array; 2i
@@ -133,6 +138,12 @@ class TransformerLayer(tf.keras.layers.Layer):
                  dropout_rate=0.1,
                  reorder_ln=False):
         super(TransformerLayer, self).__init__()
+        self.d_model = d_model
+        self.num_heads = num_heads
+        self.dff = dff
+        self.max_pos_length = max_pos_length
+        self.dropout_rate = dropout_rate
+        self.reorder_ln = reorder_ln
 
         self.mha = MultiHeadAttention(d_model, num_heads)
         self.ffn = point_wise_feed_forward_network(d_model, dff)
@@ -181,3 +192,9 @@ class TransformerLayer(tf.keras.layers.Layer):
 
         return out2
 
+    def get_config(self):
+        return {"d_model": self.d_model,
+            'num_heads': self.num_heads,
+            'dff': self.dff,
+            'max_pos_length': self.max_pos_length,
+            'reorder_ln': self.reorder_ln}
